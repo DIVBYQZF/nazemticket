@@ -1468,6 +1468,50 @@ app.get('/api/warnings', authMiddleware, (req, res) => {
   return res.json(getWarnings());
 });
 
+// جلب قنوات ورتب وسيرفر ديسكورد لعرضها كخيارات قائمة منسدلة
+app.get('/api/guild-data', authMiddleware, (req, res) => {
+  const guild = client.guilds.cache.get(process.env.GUILD_ID) || client.guilds.cache.first();
+  if (!guild) {
+    return res.json({ channels: [], categories: [], roles: [] });
+  }
+
+  const channels = guild.channels.cache
+    .filter((c) => c.isTextBased())
+    .map((c) => ({ id: c.id, name: c.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const categories = guild.channels.cache
+    .filter((c) => c.type === ChannelType.GuildCategory)
+    .map((c) => ({ id: c.id, name: c.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const roles = guild.roles.cache
+    .filter((r) => r.id !== guild.id)
+    .sort((a, b) => b.position - a.position)
+    .map((r) => ({ id: r.id, name: r.name, color: r.hexColor }));
+
+  return res.json({
+    guildId: guild.id,
+    guildName: guild.name,
+    channels,
+    categories,
+    roles
+  });
+});
+
+// تغيير كلمة مرور الداش بورد
+app.post('/api/change-password', authMiddleware, (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || newPassword.trim().length < 3) {
+    return res.status(400).json({ error: 'كلمة المرور يجب أن تكون 3 أحرف على الأقل.' });
+  }
+  const config = getConfig();
+  if (!config.dashboard) config.dashboard = {};
+  config.dashboard.adminPassword = newPassword.trim();
+  saveConfig(config);
+  return res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح!' });
+});
+
 app.delete('/api/warnings/:userId/:warnId', authMiddleware, (req, res) => {
   const { userId, warnId } = req.params;
   const warns = getWarnings();

@@ -32,7 +32,6 @@
       margin: 0;
       display: flex;
     }
-    /* Sidebar */
     .sidebar {
       width: 270px;
       background: var(--bg-card);
@@ -94,7 +93,6 @@
       padding: 15px;
       border-top: 1px solid var(--border-color);
     }
-    /* Main Content */
     .main-wrapper {
       margin-right: 270px;
       flex-grow: 1;
@@ -165,7 +163,6 @@
       font-size: 0.9rem;
       font-weight: 600;
     }
-    /* Form controls */
     .form-control, .form-select {
       background-color: #0c0d14 !important;
       border: 1px solid var(--border-color) !important;
@@ -193,7 +190,6 @@
       background-color: var(--success);
       border-color: var(--success);
     }
-    /* Buttons */
     .btn-primary-custom {
       background-color: var(--primary);
       border: none;
@@ -219,7 +215,6 @@
       background: rgba(87, 242, 135, 0.15);
       color: var(--success);
     }
-    /* Toast */
     #toastMsg {
       position: fixed;
       bottom: 25px;
@@ -234,8 +229,7 @@
       box-shadow: 0 5px 25px rgba(0,0,0,0.5);
       font-weight: 700;
     }
-    /* Auth Modal */
-    #authOverlay {
+    #authOverlay, #pwdModal {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(10, 11, 16, 0.95);
@@ -269,9 +263,26 @@
       <p class="text-muted mb-4">يرجى إدخال كلمة مرور الإدارة لتسجيل الدخول</p>
       <form id="loginForm">
         <div class="mb-3">
-          <input type="password" id="passwordInput" class="form-control text-center" placeholder="كلمة المرور (الافتراضية: nazem)" required>
+          <input type="password" id="passwordInput" class="form-control text-center" placeholder="كلمة المرور" required>
         </div>
         <button type="submit" class="btn btn-primary-custom w-100 py-2">تسجيل الدخول <i class="fa-solid fa-arrow-left ms-2"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change Password Modal -->
+  <div id="pwdModal" style="display: none;">
+    <div class="auth-box">
+      <h4 class="fw-bold mb-3"><i class="fa-solid fa-key text-warning me-2"></i> تغيير كلمة مرور الداش بورد</h4>
+      <p class="text-muted small mb-4">أدخل كلمة المرور الجديدة التي ترغب في استخدامها للدخول</p>
+      <form id="changePwdForm">
+        <div class="mb-3">
+          <input type="password" id="newPwdInput" class="form-control text-center" placeholder="كلمة المرور الجديدة" required minlength="3">
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary-custom flex-grow-1">حفظ <i class="fa-solid fa-check ms-1"></i></button>
+          <button type="button" class="btn btn-secondary rounded-3 px-3" onclick="closePasswordModal()">إلغاء</button>
+        </div>
       </form>
     </div>
   </div>
@@ -332,9 +343,12 @@
     <div class="top-header">
       <div>
         <h2 class="page-title" id="pageHeading">الرئيسية والإحصائيات</h2>
-        <span class="text-muted">مراقبة وإدارة سيرفر ديسكورد بالكامل من مكان واحد</span>
+        <span class="text-muted" id="guildSubTitle">مراقبة وإدارة سيرفر ديسكورد بالكامل من مكان واحد</span>
       </div>
-      <div>
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-outline-warning btn-sm rounded-3 fw-bold px-3 py-2" onclick="openPasswordModal()">
+          <i class="fa-solid fa-key me-1"></i> تغيير كلمة المرور
+        </button>
         <span class="badge-status badge-online" id="botStatusBadge">
           <i class="fa-solid fa-circle text-success" style="font-size: 0.6rem;"></i>
           <span id="botTag">متصل (Online)</span>
@@ -453,12 +467,12 @@
             <input type="number" id="ticketCounter" class="form-control">
           </div>
           <div class="col-md-4">
-            <label class="form-label">روم سجلات التذاكر (Logs Channel ID):</label>
-            <input type="text" id="logsChannelId" class="form-control" placeholder="1559953450324721757">
+            <label class="form-label">روم سجلات التذاكر (Logs Channel):</label>
+            <select id="logsChannelId" class="form-select"></select>
           </div>
           <div class="col-md-4">
-            <label class="form-label">رتبة الدعم الفني الافتراضية (Role ID):</label>
-            <input type="text" id="supportRoleId" class="form-control" placeholder="1558870858540257409">
+            <label class="form-label">رتبة الدعم الفني الافتراضية (Support Role):</label>
+            <select id="supportRoleId" class="form-select"></select>
           </div>
         </div>
       </div>
@@ -528,8 +542,10 @@
           </div>
 
           <div class="col-12">
-            <label class="form-label">رتب الموثوقين المعفاة من الحماية (Whitelist Roles IDs - مفصولة بفاصلة):</label>
-            <input type="text" id="protWhitelistRoles" class="form-control" placeholder="1558870858540257409, 1558870858641055774">
+            <label class="form-label">رتب الموثوقين المعفاة من الحماية (Whitelist Roles):</label>
+            <div id="whitelistRolesContainer" class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color); max-height: 180px; overflow-y: auto;">
+              <!-- Role Checkboxes -->
+            </div>
           </div>
         </div>
 
@@ -543,28 +559,28 @@
     <div id="tab-logs" class="content-tab" style="display: none;">
       <div class="card-custom">
         <div class="card-title-custom"><i class="fa-solid fa-file-waveform text-info"></i> مركز اللوقات الشاملة وتوثيق السيرفر</div>
-        <p class="text-muted">يمكنك تحديد روم موحد لكافة اللوقات، أو تخصيص قنوات منفصلة لكل نوع من السجلات.</p>
+        <p class="text-muted">اختر القناة المخصصة لكل نوع لوق مباشرة من القائمة:</p>
 
         <div class="row g-3 mb-4">
           <div class="col-md-6">
-            <label class="form-label">روم اللوق العام الافتراضي (General Logs Channel ID):</label>
-            <input type="text" id="logChanGeneral" class="form-control" placeholder="1559953450324721757">
+            <label class="form-label">روم اللوق العام الافتراضي:</label>
+            <select id="logChanGeneral" class="form-select"></select>
           </div>
           <div class="col-md-6">
             <label class="form-label">روم لوق الرسائل (حذف وتعديل الرسائل):</label>
-            <input type="text" id="logChanMessages" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+            <select id="logChanMessages" class="form-select"></select>
           </div>
           <div class="col-md-4">
             <label class="form-label">روم لوق الصوتيات (دخول، خروج، انتقال):</label>
-            <input type="text" id="logChanVoice" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+            <select id="logChanVoice" class="form-select"></select>
           </div>
           <div class="col-md-4">
             <label class="form-label">روم لوق الأعضاء (دخول، خروج، تغيير الرتب والنك نيم):</label>
-            <input type="text" id="logChanMembers" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+            <select id="logChanMembers" class="form-select"></select>
           </div>
           <div class="col-md-4">
             <label class="form-label">روم لوق الرتب والرومات (إنشاء، حذف، تعديل):</label>
-            <input type="text" id="logChanRoles" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+            <select id="logChanRoles" class="form-select"></select>
           </div>
         </div>
 
@@ -628,18 +644,18 @@
           <div class="col-md-6">
             <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
               <input class="form-check-input" type="checkbox" id="welcomeSendImageCard" checked>
-              <label class="form-check-label fw-bold ms-2">توليد وإرسال صورة كرت الترحيب (Welcome Card Image) 🖼️</label>
+              <label class="form-check-label fw-bold ms-2">توليد وإرسال صورة كرت الترحيب (Welcome Card) 🖼️</label>
             </div>
           </div>
         </div>
         <div class="row g-3">
           <div class="col-md-6">
-            <label class="form-label">روم الترحيب (Channel ID):</label>
-            <input type="text" id="welcomeChannelId" class="form-control" placeholder="ايدي القناة">
+            <label class="form-label">روم الترحيب:</label>
+            <select id="welcomeChannelId" class="form-select"></select>
           </div>
           <div class="col-md-6">
-            <label class="form-label">الرتبة التلقائية للعضو فور دخوله (Auto-Role ID):</label>
-            <input type="text" id="welcomeAutoRoleId" class="form-control" placeholder="ايدي الرتبة">
+            <label class="form-label">الرتبة التلقائية للعضو فور دخوله (Auto-Role):</label>
+            <select id="welcomeAutoRoleId" class="form-select"></select>
           </div>
           <div class="col-12">
             <label class="form-label">رسالة الترحيب (استخدم {user} لمنشن العضو و {server} لاسم السيرفر):</label>
@@ -681,6 +697,7 @@
 
   <script>
     let globalConfig = {};
+    let guildData = { channels: [], roles: [], categories: [] };
 
     // Authentication
     const savedToken = localStorage.getItem('nazem_token');
@@ -703,6 +720,32 @@
         loadAll();
       } else {
         alert('كلمة المرور غير صحيحة!');
+      }
+    });
+
+    function openPasswordModal() {
+      document.getElementById('pwdModal').style.display = 'flex';
+      document.getElementById('newPwdInput').value = '';
+    }
+    function closePasswordModal() {
+      document.getElementById('pwdModal').style.display = 'none';
+    }
+
+    document.getElementById('changePwdForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const newPassword = document.getElementById('newPwdInput').value.trim();
+      const token = localStorage.getItem('nazem_token');
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ newPassword })
+      });
+      const data = await res.json();
+      if (data.success) {
+        closePasswordModal();
+        showToast('🔑 تم تغيير كلمة مرور الداش بورد بنجاح!');
+      } else {
+        alert(data.error || 'حدث خطأ أثناء تغيير كلمة المرور');
       }
     });
 
@@ -753,6 +796,15 @@
         document.getElementById('botTag').innerText = stats.botTag || 'Nazem Ticket';
       } catch (e) {}
 
+      // Load Guild Channels & Roles
+      try {
+        const gRes = await fetch('/api/guild-data', { headers });
+        guildData = await gRes.json();
+        if (guildData.guildName) {
+          document.getElementById('guildSubTitle').innerText = `إدارة سيرفر ${guildData.guildName}`;
+        }
+      } catch (e) {}
+
       // Load Config
       try {
         const cfgRes = await fetch('/api/config', { headers });
@@ -760,15 +812,59 @@
         populateForm(globalConfig);
       } catch (e) {}
 
-      // Load Warnings
       loadWarnings();
+    }
+
+    // تعبئة القوائم المنسدلة للرومات
+    function fillChannelSelect(selectId, selectedValue, defaultLabel = '-- اختر الروم --') {
+      const el = document.getElementById(selectId);
+      if (!el) return;
+      el.innerHTML = `<option value="">${defaultLabel}</option>`;
+      guildData.channels.forEach(ch => {
+        const opt = document.createElement('option');
+        opt.value = ch.id;
+        opt.innerText = `# ${ch.name}`;
+        if (ch.id === selectedValue) opt.selected = true;
+        el.appendChild(opt);
+      });
+      // If current value is not in fetched channels, keep it as option
+      if (selectedValue && !guildData.channels.some(c => c.id === selectedValue)) {
+        const customOpt = document.createElement('option');
+        customOpt.value = selectedValue;
+        customOpt.innerText = `# (${selectedValue})`;
+        customOpt.selected = true;
+        el.appendChild(customOpt);
+      }
+    }
+
+    // تعبئة القوائم المنسدلة للرتب
+    function fillRoleSelect(selectElOrId, selectedValue, defaultLabel = '-- اختر الرتبة --') {
+      const el = typeof selectElOrId === 'string' ? document.getElementById(selectElOrId) : selectElOrId;
+      if (!el) return;
+      el.innerHTML = `<option value="">${defaultLabel}</option>`;
+      guildData.roles.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.innerText = `@ ${r.name}`;
+        if (r.id === selectedValue) opt.selected = true;
+        el.appendChild(opt);
+      });
+      if (selectedValue && !guildData.roles.some(r => r.id === selectedValue)) {
+        const customOpt = document.createElement('option');
+        customOpt.value = selectedValue;
+        customOpt.innerText = `@ (${selectedValue})`;
+        customOpt.selected = true;
+        el.appendChild(customOpt);
+      }
     }
 
     function populateForm(cfg) {
       document.getElementById('statTickets').innerText = cfg.ticketCounter || 0;
       document.getElementById('ticketCounter').value = cfg.ticketCounter || 0;
-      document.getElementById('logsChannelId').value = cfg.logsChannelId || '';
-      document.getElementById('supportRoleId').value = cfg.supportRoleId || '';
+
+      // Select Dropdowns
+      fillChannelSelect('logsChannelId', cfg.logsChannelId);
+      fillRoleSelect('supportRoleId', cfg.supportRoleId);
 
       // Protection
       const p = cfg.protection || {};
@@ -781,16 +877,30 @@
       document.getElementById('protAntiBots').checked = !!p.antiBots;
       document.getElementById('protAntiNuke').checked = !!p.antiNuke;
       document.getElementById('quickAntiNuke').checked = !!p.antiNuke;
-      document.getElementById('protWhitelistRoles').value = (p.whitelistRoles || []).join(', ');
 
-      // Logs
+      // Whitelist Roles Checkboxes
+      const wlContainer = document.getElementById('whitelistRolesContainer');
+      wlContainer.innerHTML = '';
+      const selectedWl = p.whitelistRoles || [];
+      guildData.roles.forEach(r => {
+        const isChecked = selectedWl.includes(r.id);
+        const div = document.createElement('div');
+        div.className = 'form-check form-check-inline me-3 mb-2';
+        div.innerHTML = `
+          <input class="form-check-input wl-role-cb" type="checkbox" value="${r.id}" id="wl_${r.id}" ${isChecked ? 'checked' : ''}>
+          <label class="form-check-label" for="wl_${r.id}" style="color: ${r.color || '#fff'}">@ ${r.name}</label>
+        `;
+        wlContainer.appendChild(div);
+      });
+
+      // Logs Dropdowns
       const l = cfg.logs || {};
       document.getElementById('quickLogs').checked = l.enabled !== false;
-      document.getElementById('logChanGeneral').value = l.general || cfg.logsChannelId || '';
-      document.getElementById('logChanMessages').value = l.messages || '';
-      document.getElementById('logChanVoice').value = l.voice || '';
-      document.getElementById('logChanMembers').value = l.members || '';
-      document.getElementById('logChanRoles').value = l.roles || '';
+      fillChannelSelect('logChanGeneral', l.general || cfg.logsChannelId, '-- اختر روم اللوق العام --');
+      fillChannelSelect('logChanMessages', l.messages, '-- استخدام روم اللوق العام --');
+      fillChannelSelect('logChanVoice', l.voice, '-- استخدام روم اللوق العام --');
+      fillChannelSelect('logChanMembers', l.members, '-- استخدام روم اللوق العام --');
+      fillChannelSelect('logChanRoles', l.roles, '-- استخدام روم اللوق العام --');
 
       document.getElementById('logToggleMsgDelete').checked = l.logMessageDelete !== false;
       document.getElementById('logToggleMsgUpdate').checked = l.logMessageUpdate !== false;
@@ -803,8 +913,8 @@
       const w = cfg.welcome || {};
       document.getElementById('welcomeEnabled').checked = !!w.enabled;
       document.getElementById('welcomeSendImageCard').checked = w.sendImageCard !== false;
-      document.getElementById('welcomeChannelId').value = w.channelId || '';
-      document.getElementById('welcomeAutoRoleId').value = w.autoRoleId || '';
+      fillChannelSelect('welcomeChannelId', w.channelId, '-- اختر روم الترحيب --');
+      fillRoleSelect('welcomeAutoRoleId', w.autoRoleId, '-- بدون رتبة تلقائية --');
       document.getElementById('welcomeMessage').value = w.message || '';
 
       // Render Ticket Types
@@ -834,25 +944,31 @@
             </div>
             <div class="col-md-3">
               <label class="small text-muted">الرتبة المسؤولة 1:</label>
-              <input type="text" class="form-control" value="${t.roleId || ''}" id="typeRole1_${index}">
+              <select class="form-select" id="typeRole1_${index}"></select>
             </div>
             <div class="col-md-3">
               <label class="small text-muted">الرتبة المسؤولة 2:</label>
-              <input type="text" class="form-control" value="${t.roleId2 || ''}" id="typeRole2_${index}">
+              <select class="form-select" id="typeRole2_${index}"></select>
             </div>
           </div>
         `;
         container.appendChild(div);
+        fillRoleSelect(`typeRole1_${index}`, t.roleId, '-- بدون رتبة 1 --');
+        fillRoleSelect(`typeRole2_${index}`, t.roleId2, '-- بدون رتبة 2 --');
       });
     }
 
     async function saveSettings() {
       const token = localStorage.getItem('nazem_token');
+
+      // Selected Whitelist Roles
+      const selectedWlRoles = Array.from(document.querySelectorAll('.wl-role-cb:checked')).map(cb => cb.value);
+
       const updated = {
         ...globalConfig,
         ticketCounter: parseInt(document.getElementById('ticketCounter').value) || 0,
-        logsChannelId: document.getElementById('logsChannelId').value.trim(),
-        supportRoleId: document.getElementById('supportRoleId').value.trim(),
+        logsChannelId: document.getElementById('logsChannelId').value,
+        supportRoleId: document.getElementById('supportRoleId').value,
         protection: {
           ...globalConfig.protection,
           antiSpam: document.getElementById('protAntiSpam').checked,
@@ -862,15 +978,15 @@
           antiInvites: document.getElementById('protAntiLinks').checked,
           antiBots: document.getElementById('protAntiBots').checked,
           antiNuke: document.getElementById('protAntiNuke').checked,
-          whitelistRoles: document.getElementById('protWhitelistRoles').value.split(',').map(s => s.trim()).filter(Boolean)
+          whitelistRoles: selectedWlRoles
         },
         logs: {
           enabled: document.getElementById('quickLogs').checked,
-          general: document.getElementById('logChanGeneral').value.trim() || document.getElementById('logsChannelId').value.trim(),
-          messages: document.getElementById('logChanMessages').value.trim(),
-          voice: document.getElementById('logChanVoice').value.trim(),
-          members: document.getElementById('logChanMembers').value.trim(),
-          roles: document.getElementById('logChanRoles').value.trim(),
+          general: document.getElementById('logChanGeneral').value || document.getElementById('logsChannelId').value,
+          messages: document.getElementById('logChanMessages').value,
+          voice: document.getElementById('logChanVoice').value,
+          members: document.getElementById('logChanMembers').value,
+          roles: document.getElementById('logChanRoles').value,
           logMessageDelete: document.getElementById('logToggleMsgDelete').checked,
           logMessageUpdate: document.getElementById('logToggleMsgUpdate').checked,
           logVoiceState: document.getElementById('logToggleVoice').checked,
@@ -881,8 +997,8 @@
         welcome: {
           enabled: document.getElementById('welcomeEnabled').checked,
           sendImageCard: document.getElementById('welcomeSendImageCard').checked,
-          channelId: document.getElementById('welcomeChannelId').value.trim(),
-          autoRoleId: document.getElementById('welcomeAutoRoleId').value.trim(),
+          channelId: document.getElementById('welcomeChannelId').value,
+          autoRoleId: document.getElementById('welcomeAutoRoleId').value,
           message: document.getElementById('welcomeMessage').value
         }
       };
@@ -909,7 +1025,7 @@
 
       if (res.ok) {
         globalConfig = updated;
-        showToast('✅ تم حفظ كافة الإعدادات واللوقات بنجاح وتحديث البوت فوراً!');
+        showToast('✅ تم حفظ كافة الإعدادات والخيارات بنجاح!');
       } else {
         alert('حدث خطأ أثناء حفظ الإعدادات!');
       }
