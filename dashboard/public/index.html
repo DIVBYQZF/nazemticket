@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة تحكم بوت ناظم | Nazem Dashboard</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.rtl.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0c0d14;
+      --bg-card: #151724;
+      --bg-card-hover: #1c1f30;
+      --border-color: #272a40;
+      --primary: #5865f2;
+      --primary-hover: #4752c4;
+      --success: #57f287;
+      --danger: #ed4245;
+      --warning: #fee75c;
+      --text-main: #f2f3f5;
+      --text-muted: #949ba4;
+    }
+    * {
+      font-family: 'Cairo', sans-serif;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+    }
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
+    .sidebar-brand {
+      padding: 24px 20px;
+      font-size: 1.3rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid var(--border-color);
+      color: #fff;
+    }
+    .sidebar-brand i {
+      color: var(--primary);
+      font-size: 1.6rem;
+    }
+    .sidebar-menu {
+      padding: 15px 10px;
+      list-style: none;
+      margin: 0;
+      flex-grow: 1;
+    }
+    .sidebar-menu li {
+      margin-bottom: 6px;
+    }
+    .sidebar-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      color: var(--text-muted);
+      text-decoration: none;
+      border-radius: 10px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      background: var(--primary);
+      color: #fff;
+    }
+    .sidebar-link i {
+      font-size: 1.1rem;
+      width: 24px;
+    }
+    .sidebar-footer {
+      padding: 15px;
+      border-top: 1px solid var(--border-color);
+    }
+    /* Main Content */
+    .main-wrapper {
+      margin-right: 260px;
+      flex-grow: 1;
+      padding: 30px;
+      max-width: calc(100% - 260px);
+    }
+    .top-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .page-title {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin: 0;
+    }
+    .card-custom {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+    .card-title-custom {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      transition: transform 0.2s;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      border-color: var(--primary);
+    }
+    .stat-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 14px;
+      background: rgba(88, 101, 242, 0.12);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+    }
+    .stat-val {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    /* Form controls */
+    .form-control, .form-select {
+      background-color: #0c0d14 !important;
+      border: 1px solid var(--border-color) !important;
+      color: #fff !important;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(88, 101, 242, 0.25) !important;
+    }
+    .form-label {
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #d1d5db;
+    }
+    .form-check-input {
+      width: 2.4em;
+      height: 1.3em;
+      background-color: #272a40;
+      border-color: #3f4460;
+      cursor: pointer;
+    }
+    .form-check-input:checked {
+      background-color: var(--success);
+      border-color: var(--success);
+    }
+    /* Buttons */
+    .btn-primary-custom {
+      background-color: var(--primary);
+      border: none;
+      color: #fff;
+      font-weight: 700;
+      padding: 10px 22px;
+      border-radius: 10px;
+      transition: all 0.2s;
+    }
+    .btn-primary-custom:hover {
+      background-color: var(--primary-hover);
+    }
+    .badge-status {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge-online {
+      background: rgba(87, 242, 135, 0.15);
+      color: var(--success);
+    }
+    /* Toast */
+    #toastMsg {
+      position: fixed;
+      bottom: 25px;
+      left: 25px;
+      background: var(--bg-card);
+      border: 1px solid var(--success);
+      color: #fff;
+      padding: 14px 22px;
+      border-radius: 12px;
+      display: none;
+      z-index: 9999;
+      box-shadow: 0 5px 25px rgba(0,0,0,0.5);
+      font-weight: 700;
+    }
+    /* Auth Modal */
+    #authOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(10, 11, 16, 0.95);
+      backdrop-filter: blur(8px);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .auth-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      padding: 35px;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 420px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Auth Modal -->
+  <div id="authOverlay">
+    <div class="auth-box">
+      <div class="mb-4">
+        <i class="fa-solid fa-shield-halved text-primary" style="font-size: 3.5rem;"></i>
+      </div>
+      <h3 class="fw-bold mb-2">لوحة تحكم بوت ناظم</h3>
+      <p class="text-muted mb-4">يرجى إدخال كلمة مرور الإدارة لتسجيل الدخول</p>
+      <form id="loginForm">
+        <div class="mb-3">
+          <input type="password" id="passwordInput" class="form-control text-center" placeholder="كلمة المرور (الافتراضية: nazem)" required>
+        </div>
+        <button type="submit" class="btn btn-primary-custom w-100 py-2">تسجيل الدخول <i class="fa-solid fa-arrow-left ms-2"></i></button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <i class="fa-solid fa-robot"></i>
+      <span>بوت ناظم | NAZEM</span>
+    </div>
+    <ul class="sidebar-menu">
+      <li>
+        <a class="sidebar-link active" onclick="switchTab('tab-overview')">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>الرئيسية والإحصائيات</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-link" onclick="switchTab('tab-tickets')">
+          <i class="fa-solid fa-ticket"></i>
+          <span>نظام التذاكر المطور</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-link" onclick="switchTab('tab-protection')">
+          <i class="fa-solid fa-shield-virus"></i>
+          <span>مركز الحماية والـ Anti-Nuke</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-link" onclick="switchTab('tab-welcome')">
+          <i class="fa-solid fa-hand-peace"></i>
+          <span>الترحيب والرتب التلقائية</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-link" onclick="switchTab('tab-warnings')">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>سجل التحذيرات والأعضاء</span>
+        </a>
+      </li>
+    </ul>
+    <div class="sidebar-footer">
+      <button class="btn btn-outline-danger w-100 rounded-3 py-2 fw-bold" onclick="logout()">
+        <i class="fa-solid fa-right-from-bracket me-2"></i> خروج
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main Wrapper -->
+  <main class="main-wrapper">
+    <div class="top-header">
+      <div>
+        <h2 class="page-title" id="pageHeading">الرئيسية والإحصائيات</h2>
+        <span class="text-muted">مراقبة وإدارة سيرفر ديسكورد بالكامل من مكان واحد</span>
+      </div>
+      <div>
+        <span class="badge-status badge-online" id="botStatusBadge">
+          <i class="fa-solid fa-circle text-success" style="font-size: 0.6rem;"></i>
+          <span id="botTag">متصل (Online)</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- TAB 1: OVERVIEW -->
+    <div id="tab-overview" class="content-tab">
+      <div class="row g-4 mb-4">
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="stat-icon"><i class="fa-solid fa-server"></i></div>
+            <div>
+              <div class="stat-val" id="statGuilds">0</div>
+              <div class="stat-label">السيرفرات المتصلة</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(87, 242, 135, 0.12); color: var(--success);"><i class="fa-solid fa-users"></i></div>
+            <div>
+              <div class="stat-val" id="statMembers">0</div>
+              <div class="stat-label">إجمالي الأعضاء</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(254, 231, 92, 0.12); color: var(--warning);"><i class="fa-solid fa-ticket"></i></div>
+            <div>
+              <div class="stat-val" id="statTickets">0</div>
+              <div class="stat-label">رقم التذكرة القادم</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="stat-card">
+            <div class="stat-icon" style="background: rgba(237, 66, 69, 0.12); color: var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div>
+              <div class="stat-val" id="statWarnings">0</div>
+              <div class="stat-label">التحذيرات النشطة</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Toggles -->
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-bolt text-warning"></i> الإجراءات السريعة لحماية السيرفر</div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="fw-bold mb-1">مانع السبام (Anti-Spam)</h6>
+                  <small class="text-muted">كتم فوري لمن يكرر الرسائل</small>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="quickAntiSpam" onchange="toggleQuick('antiSpam', this.checked)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="fw-bold mb-1">مانع الدعوات والروابط</h6>
+                  <small class="text-muted">حذف روابط الديسكورد المشبوهة</small>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="quickAntiLinks" onchange="toggleQuick('antiLinks', this.checked)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="fw-bold mb-1">درع الحماية (Anti-Nuke)</h6>
+                  <small class="text-muted">منع تخريب الرتب والرومات</small>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="quickAntiNuke" onchange="toggleQuick('antiNuke', this.checked)">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: TICKETS -->
+    <div id="tab-tickets" class="content-tab" style="display: none;">
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-sliders text-primary"></i> إعدادات نظام التذاكر</div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">عداد التذاكر المتسلسل (الرقم الحالي):</label>
+            <input type="number" id="ticketCounter" class="form-control">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">روم سجلات التذاكر (Logs Channel ID):</label>
+            <input type="text" id="logsChannelId" class="form-control" placeholder="1559953450324721757">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">رتبة الدعم الفني الافتراضية (Role ID):</label>
+            <input type="text" id="supportRoleId" class="form-control" placeholder="1558870858540257409">
+          </div>
+        </div>
+      </div>
+
+      <!-- Ticket Types -->
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-list-check text-success"></i> أقسام التذاكر المعروضة في القائمة</div>
+        <div id="ticketTypesContainer">
+          <!-- Rendered via JS -->
+        </div>
+        <button class="btn btn-primary-custom mt-3" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk me-2"></i> حفظ إعدادات التذاكر
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 3: PROTECTION & ANTI-NUKE -->
+    <div id="tab-protection" class="content-tab" style="display: none;">
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-shield-halved text-danger"></i> إعدادات الحماية المتقدمة ودرع السيرفر</div>
+        <div class="row g-4">
+          <div class="col-md-6">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold">تفعيل مانع السبام والفلود (Anti-Spam)</span>
+                <input class="form-check-input" type="checkbox" id="protAntiSpam">
+              </div>
+              <div class="row g-2">
+                <div class="col-6">
+                  <label class="form-label small">الحد الأقصى للرسائل (في 5 ثوانٍ):</label>
+                  <input type="number" id="protAntiSpamLimit" class="form-control" value="5">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small">مدة الكتم التلقائي (بالدقائق):</label>
+                  <input type="number" id="protAntiSpamMuteMinutes" class="form-control" value="5">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold">تفعيل مانع الروابط والدعوات (Anti-Links)</span>
+                <input class="form-check-input" type="checkbox" id="protAntiLinks">
+              </div>
+              <p class="small text-muted mb-0">يقوم بحذف أي رابط دعوة لديسكورد أو مواقع إعلانية تلقائياً مع تحذير العضو المخالف.</p>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold">مانع دخول البوتات غير الموثقة (Anti-Bot)</span>
+                <input class="form-check-input" type="checkbox" id="protAntiBots">
+              </div>
+              <p class="small text-muted mb-0">يقوم بطرد أي بوت يتم إدخاله للسيرفر فوراً ما لم يقم الأونر أو رتبة الوايت لست بإدخاله.</p>
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="fw-bold text-danger">درع الحماية ضد التخريب (Anti-Nuke)</span>
+                <input class="form-check-input" type="checkbox" id="protAntiNuke">
+              </div>
+              <p class="small text-muted mb-0">إذا حاول أي مشرف حذف رومات أو رتب أو طرد أعضاء بشكل متكرر، يسحب منه البوت الرتب فوراً ويوقفه!</p>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">رتب الموثوقين المعفاة من الحماية (Whitelist Roles IDs - مفصولة بفاصلة):</label>
+            <input type="text" id="protWhitelistRoles" class="form-control" placeholder="1558870858540257409, 1558870858641055774">
+          </div>
+        </div>
+
+        <button class="btn btn-primary-custom mt-4" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk me-2"></i> حفظ إعدادات الحماية
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 4: WELCOME -->
+    <div id="tab-welcome" class="content-tab" style="display: none;">
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-door-open text-primary"></i> نظام الترحيب بالأعضاء الجدد</div>
+        <div class="form-check form-switch mb-3">
+          <input class="form-check-input" type="checkbox" id="welcomeEnabled">
+          <label class="form-check-label fw-bold ms-2">تفعيل الترحيب التلقائي</label>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">روم الترحيب (Channel ID):</label>
+            <input type="text" id="welcomeChannelId" class="form-control" placeholder="ايدي القناة">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">الرتبة التلقائية للعضو فور دخوله (Auto-Role ID):</label>
+            <input type="text" id="welcomeAutoRoleId" class="form-control" placeholder="ايدي الرتبة">
+          </div>
+          <div class="col-12">
+            <label class="form-label">رسالة الترحيب (استخدم {user} لمنشن العضو و {server} لاسم السيرفر):</label>
+            <textarea id="welcomeMessage" rows="3" class="form-control"></textarea>
+          </div>
+        </div>
+        <button class="btn btn-primary-custom mt-3" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk me-2"></i> حفظ إعدادات الترحيب
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 5: WARNINGS -->
+    <div id="tab-warnings" class="content-tab" style="display: none;">
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-list-ul text-warning"></i> سجل تحذيرات الأعضاء</div>
+        <div class="table-responsive">
+          <table class="table table-dark table-hover" id="warningsTable">
+            <thead>
+              <tr>
+                <th>العضو (User ID)</th>
+                <th>سبب التحذير</th>
+                <th>المشرف</th>
+                <th>التاريخ والوقت</th>
+                <th>إجراء</th>
+              </tr>
+            </thead>
+            <tbody id="warningsBody">
+              <tr><td colspan="5" class="text-center text-muted py-4">لا توجد تحذيرات مسجلة حالياً.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Notification Toast -->
+  <div id="toastMsg"><i class="fa-solid fa-circle-check me-2 text-success"></i> <span id="toastText">تم الحفظ بنجاح!</span></div>
+
+  <script>
+    let globalConfig = {};
+
+    // Authentication
+    const savedToken = localStorage.getItem('nazem_token');
+    if (savedToken) {
+      checkAuth(savedToken);
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const pwd = document.getElementById('passwordInput').value.trim();
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pwd })
+      });
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem('nazem_token', data.token);
+        document.getElementById('authOverlay').style.display = 'none';
+        loadAll();
+      } else {
+        alert('كلمة المرور غير صحيحة!');
+      }
+    });
+
+    async function checkAuth(token) {
+      try {
+        const res = await fetch('/api/stats', { headers: { 'Authorization': 'Bearer ' + token } });
+        if (res.ok) {
+          document.getElementById('authOverlay').style.display = 'none';
+          loadAll();
+        } else {
+          localStorage.removeItem('nazem_token');
+          document.getElementById('authOverlay').style.display = 'flex';
+        }
+      } catch (e) {
+        document.getElementById('authOverlay').style.display = 'flex';
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('nazem_token');
+      location.reload();
+    }
+
+    function showToast(text) {
+      const t = document.getElementById('toastMsg');
+      document.getElementById('toastText').innerText = text;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.content-tab').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.sidebar-link').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabId).style.display = 'block';
+      event.currentTarget.classList.add('active');
+    }
+
+    async function loadAll() {
+      const token = localStorage.getItem('nazem_token');
+      const headers = { 'Authorization': 'Bearer ' + token };
+
+      // Load Stats
+      try {
+        const statsRes = await fetch('/api/stats', { headers });
+        const stats = await statsRes.json();
+        document.getElementById('statGuilds').innerText = stats.guildsCount || 0;
+        document.getElementById('statMembers').innerText = stats.membersCount || 0;
+        document.getElementById('botTag').innerText = stats.botTag || 'Nazem Ticket';
+      } catch (e) {}
+
+      // Load Config
+      try {
+        const cfgRes = await fetch('/api/config', { headers });
+        globalConfig = await cfgRes.json();
+        populateForm(globalConfig);
+      } catch (e) {}
+
+      // Load Warnings
+      loadWarnings();
+    }
+
+    function populateForm(cfg) {
+      document.getElementById('statTickets').innerText = cfg.ticketCounter || 0;
+      document.getElementById('ticketCounter').value = cfg.ticketCounter || 0;
+      document.getElementById('logsChannelId').value = cfg.logsChannelId || '';
+      document.getElementById('supportRoleId').value = cfg.supportRoleId || '';
+
+      // Protection
+      const p = cfg.protection || {};
+      document.getElementById('protAntiSpam').checked = !!p.antiSpam;
+      document.getElementById('quickAntiSpam').checked = !!p.antiSpam;
+      document.getElementById('protAntiSpamLimit').value = p.antiSpamLimit || 5;
+      document.getElementById('protAntiSpamMuteMinutes').value = p.antiSpamMuteMinutes || 5;
+      document.getElementById('protAntiLinks').checked = !!p.antiLinks;
+      document.getElementById('quickAntiLinks').checked = !!p.antiLinks;
+      document.getElementById('protAntiBots').checked = !!p.antiBots;
+      document.getElementById('protAntiNuke').checked = !!p.antiNuke;
+      document.getElementById('quickAntiNuke').checked = !!p.antiNuke;
+      document.getElementById('protWhitelistRoles').value = (p.whitelistRoles || []).join(', ');
+
+      // Welcome
+      const w = cfg.welcome || {};
+      document.getElementById('welcomeEnabled').checked = !!w.enabled;
+      document.getElementById('welcomeChannelId').value = w.channelId || '';
+      document.getElementById('welcomeAutoRoleId').value = w.autoRoleId || '';
+      document.getElementById('welcomeMessage').value = w.message || '';
+
+      // Render Ticket Types
+      renderTicketTypes(cfg.ticketTypes || []);
+    }
+
+    function renderTicketTypes(types) {
+      const container = document.getElementById('ticketTypesContainer');
+      container.innerHTML = '';
+      types.forEach((t, index) => {
+        const div = document.createElement('div');
+        div.className = 'p-3 rounded-3 mb-3';
+        div.style.background = '#0c0d14';
+        div.style.border = '1px solid var(--border-color)';
+        div.innerHTML = `
+          <div class="row g-2 align-items-center">
+            <div class="col-md-2">
+              <label class="small text-muted">الإيموجي والاسم:</label>
+              <div class="input-group">
+                <input type="text" class="form-control text-center" style="max-width: 55px;" value="${t.emoji || '🎫'}" id="typeEmoji_${index}">
+                <input type="text" class="form-control" value="${t.label}" id="typeLabel_${index}">
+              </div>
+            </div>
+            <div class="col-md-4">
+              <label class="small text-muted">الوصف:</label>
+              <input type="text" class="form-control" value="${t.description || ''}" id="typeDesc_${index}">
+            </div>
+            <div class="col-md-3">
+              <label class="small text-muted">الرتبة المسؤولة 1:</label>
+              <input type="text" class="form-control" value="${t.roleId || ''}" id="typeRole1_${index}">
+            </div>
+            <div class="col-md-3">
+              <label class="small text-muted">الرتبة المسؤولة 2:</label>
+              <input type="text" class="form-control" value="${t.roleId2 || ''}" id="typeRole2_${index}">
+            </div>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    async function saveSettings() {
+      const token = localStorage.getItem('nazem_token');
+      const updated = {
+        ...globalConfig,
+        ticketCounter: parseInt(document.getElementById('ticketCounter').value) || 0,
+        logsChannelId: document.getElementById('logsChannelId').value.trim(),
+        supportRoleId: document.getElementById('supportRoleId').value.trim(),
+        protection: {
+          ...globalConfig.protection,
+          antiSpam: document.getElementById('protAntiSpam').checked,
+          antiSpamLimit: parseInt(document.getElementById('protAntiSpamLimit').value) || 5,
+          antiSpamMuteMinutes: parseInt(document.getElementById('protAntiSpamMuteMinutes').value) || 5,
+          antiLinks: document.getElementById('protAntiLinks').checked,
+          antiInvites: document.getElementById('protAntiLinks').checked,
+          antiBots: document.getElementById('protAntiBots').checked,
+          antiNuke: document.getElementById('protAntiNuke').checked,
+          whitelistRoles: document.getElementById('protWhitelistRoles').value.split(',').map(s => s.trim()).filter(Boolean)
+        },
+        welcome: {
+          enabled: document.getElementById('welcomeEnabled').checked,
+          channelId: document.getElementById('welcomeChannelId').value.trim(),
+          autoRoleId: document.getElementById('welcomeAutoRoleId').value.trim(),
+          message: document.getElementById('welcomeMessage').value
+        }
+      };
+
+      // Gather types
+      if (Array.isArray(globalConfig.ticketTypes)) {
+        updated.ticketTypes = globalConfig.ticketTypes.map((t, idx) => ({
+          ...t,
+          emoji: document.getElementById(`typeEmoji_${idx}`)?.value || t.emoji,
+          label: document.getElementById(`typeLabel_${idx}`)?.value || t.label,
+          description: document.getElementById(`typeDesc_${idx}`)?.value || t.description,
+          roleId: document.getElementById(`typeRole1_${idx}`)?.value || t.roleId,
+          roleId2: document.getElementById(`typeRole2_${idx}`)?.value || t.roleId2
+        }));
+      }
+
+      const res = await fetch('/api/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(updated)
+      });
+
+      if (res.ok) {
+        globalConfig = updated;
+        showToast('✅ تم حفظ كافة الإعدادات بنجاح وتحديث البوت فوراً!');
+      } else {
+        alert('حدث خطأ أثناء حفظ الإعدادات!');
+      }
+    }
+
+    async function toggleQuick(key, val) {
+      if (!globalConfig.protection) globalConfig.protection = {};
+      globalConfig.protection[key] = val;
+      if (key === 'antiLinks') globalConfig.protection.antiInvites = val;
+      const token = localStorage.getItem('nazem_token');
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(globalConfig)
+      });
+      showToast(`تم تحديث ${key} بنجاح!`);
+    }
+
+    async function loadWarnings() {
+      const token = localStorage.getItem('nazem_token');
+      try {
+        const res = await fetch('/api/warnings', { headers: { 'Authorization': 'Bearer ' + token } });
+        const data = await res.json();
+        const tbody = document.getElementById('warningsBody');
+        let count = 0;
+        let html = '';
+
+        for (const [userId, warns] of Object.entries(data)) {
+          warns.forEach(w => {
+            count++;
+            html += `
+              <tr>
+                <td><code>${userId}</code></td>
+                <td>${w.reason}</td>
+                <td>${w.moderator || 'إدارة'}</td>
+                <td>${new Date(w.timestamp).toLocaleString('ar-EG')}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteWarn('${userId}', '${w.id}')"><i class="fa-solid fa-trash"></i></button></td>
+              </tr>
+            `;
+          });
+        }
+        document.getElementById('statWarnings').innerText = count;
+        if (count > 0) tbody.innerHTML = html;
+      } catch (e) {}
+    }
+
+    async function deleteWarn(userId, warnId) {
+      if (!confirm('هل أنت متأكد من حذف هذا التحذير؟')) return;
+      const token = localStorage.getItem('nazem_token');
+      await fetch(`/api/warnings/${userId}/${warnId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      loadWarnings();
+      showToast('تم حذف التحذير بنجاح!');
+    }
+  </script>
+</body>
+</html>
