@@ -64,7 +64,23 @@
     "enabled": true,
     "channelId": "",
     "message": "👋 أهلاً بك يا {user} في سيرفر **{server}**! أنرت مجتمعنا 🎉",
-    "autoRoleId": ""
+    "autoRoleId": "",
+    "sendImageCard": true
+  },
+  "logs": {
+    "enabled": true,
+    "general": "1559953450324721757",
+    "messages": "",
+    "voice": "",
+    "members": "",
+    "roles": "",
+    "logMessageDelete": true,
+    "logMessageUpdate": true,
+    "logVoiceState": true,
+    "logMemberJoinLeave": true,
+    "logMemberRoleChange": true,
+    "logChannelChange": true,
+    "logRoleChange": true
   },
   "dashboard": {
     "adminPassword": "nazem"

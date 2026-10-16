@@ -34,7 +34,7 @@
     }
     /* Sidebar */
     .sidebar {
-      width: 260px;
+      width: 270px;
       background: var(--bg-card);
       border-left: 1px solid var(--border-color);
       display: flex;
@@ -65,6 +65,7 @@
       list-style: none;
       margin: 0;
       flex-grow: 1;
+      overflow-y: auto;
     }
     .sidebar-menu li {
       margin-bottom: 6px;
@@ -95,10 +96,10 @@
     }
     /* Main Content */
     .main-wrapper {
-      margin-right: 260px;
+      margin-right: 270px;
       flex-grow: 1;
       padding: 30px;
-      max-width: calc(100% - 260px);
+      max-width: calc(100% - 270px);
     }
     .top-header {
       display: flex;
@@ -301,9 +302,15 @@
         </a>
       </li>
       <li>
+        <a class="sidebar-link" onclick="switchTab('tab-logs')">
+          <i class="fa-solid fa-file-waveform"></i>
+          <span>مركز اللوقات الشاملة</span>
+        </a>
+      </li>
+      <li>
         <a class="sidebar-link" onclick="switchTab('tab-welcome')">
           <i class="fa-solid fa-hand-peace"></i>
-          <span>الترحيب والرتب التلقائية</span>
+          <span>الترحيب وصورة الكرت</span>
         </a>
       </li>
       <li>
@@ -378,14 +385,14 @@
 
       <!-- Quick Toggles -->
       <div class="card-custom">
-        <div class="card-title-custom"><i class="fa-solid fa-bolt text-warning"></i> الإجراءات السريعة لحماية السيرفر</div>
+        <div class="card-title-custom"><i class="fa-solid fa-bolt text-warning"></i> الإجراءات السريعة لحماية وتوثيق السيرفر</div>
         <div class="row g-3">
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 class="fw-bold mb-1">مانع السبام (Anti-Spam)</h6>
-                  <small class="text-muted">كتم فوري لمن يكرر الرسائل</small>
+                  <h6 class="fw-bold mb-1">مانع السبام</h6>
+                  <small class="text-muted">كتم فوري للمخالفين</small>
                 </div>
                 <div class="form-check form-switch m-0">
                   <input class="form-check-input" type="checkbox" id="quickAntiSpam" onchange="toggleQuick('antiSpam', this.checked)">
@@ -393,12 +400,12 @@
               </div>
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 class="fw-bold mb-1">مانع الدعوات والروابط</h6>
-                  <small class="text-muted">حذف روابط الديسكورد المشبوهة</small>
+                  <h6 class="fw-bold mb-1">مانع الروابط</h6>
+                  <small class="text-muted">حذف روابط الإعلانات</small>
                 </div>
                 <div class="form-check form-switch m-0">
                   <input class="form-check-input" type="checkbox" id="quickAntiLinks" onchange="toggleQuick('antiLinks', this.checked)">
@@ -406,15 +413,28 @@
               </div>
             </div>
           </div>
-          <div class="col-md-4">
+          <div class="col-md-3">
             <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
               <div class="d-flex justify-content-between align-items-center">
                 <div>
-                  <h6 class="fw-bold mb-1">درع الحماية (Anti-Nuke)</h6>
+                  <h6 class="fw-bold mb-1">درع الـ Anti-Nuke</h6>
                   <small class="text-muted">منع تخريب الرتب والرومات</small>
                 </div>
                 <div class="form-check form-switch m-0">
                   <input class="form-check-input" type="checkbox" id="quickAntiNuke" onchange="toggleQuick('antiNuke', this.checked)">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <div class="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 class="fw-bold mb-1">سجلات السيرفر</h6>
+                  <small class="text-muted">توثيق كافة الأحداث</small>
+                </div>
+                <div class="form-check form-switch m-0">
+                  <input class="form-check-input" type="checkbox" id="quickLogs" onchange="toggleLogsMaster(this.checked)">
                 </div>
               </div>
             </div>
@@ -446,9 +466,7 @@
       <!-- Ticket Types -->
       <div class="card-custom">
         <div class="card-title-custom"><i class="fa-solid fa-list-check text-success"></i> أقسام التذاكر المعروضة في القائمة</div>
-        <div id="ticketTypesContainer">
-          <!-- Rendered via JS -->
-        </div>
+        <div id="ticketTypesContainer"></div>
         <button class="btn btn-primary-custom mt-3" onclick="saveSettings()">
           <i class="fa-solid fa-floppy-disk me-2"></i> حفظ إعدادات التذاكر
         </button>
@@ -521,13 +539,98 @@
       </div>
     </div>
 
-    <!-- TAB 4: WELCOME -->
+    <!-- TAB 4: LOGS CENTER -->
+    <div id="tab-logs" class="content-tab" style="display: none;">
+      <div class="card-custom">
+        <div class="card-title-custom"><i class="fa-solid fa-file-waveform text-info"></i> مركز اللوقات الشاملة وتوثيق السيرفر</div>
+        <p class="text-muted">يمكنك تحديد روم موحد لكافة اللوقات، أو تخصيص قنوات منفصلة لكل نوع من السجلات.</p>
+
+        <div class="row g-3 mb-4">
+          <div class="col-md-6">
+            <label class="form-label">روم اللوق العام الافتراضي (General Logs Channel ID):</label>
+            <input type="text" id="logChanGeneral" class="form-control" placeholder="1559953450324721757">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">روم لوق الرسائل (حذف وتعديل الرسائل):</label>
+            <input type="text" id="logChanMessages" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">روم لوق الصوتيات (دخول، خروج، انتقال):</label>
+            <input type="text" id="logChanVoice" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">روم لوق الأعضاء (دخول، خروج، تغيير الرتب والنك نيم):</label>
+            <input type="text" id="logChanMembers" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">روم لوق الرتب والرومات (إنشاء، حذف، تعديل):</label>
+            <input type="text" id="logChanRoles" class="form-control" placeholder="اتركه فارغاً لاستخدام العام">
+          </div>
+        </div>
+
+        <h5 class="fw-bold mt-4 mb-3"><i class="fa-solid fa-toggle-on text-primary me-2"></i> تفعيل وتعطيل أنواع السجلات:</h5>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleMsgDelete" checked>
+              <label class="form-check-label fw-bold ms-2">لوق حذف الرسائل</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleMsgUpdate" checked>
+              <label class="form-check-label fw-bold ms-2">لوق تعديل الرسائل</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleVoice" checked>
+              <label class="form-check-label fw-bold ms-2">لوق الرومات الصوتية</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleMemberJoinLeave" checked>
+              <label class="form-check-label fw-bold ms-2">لوق دخول وخروج الأعضاء</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleMemberRoles" checked>
+              <label class="form-check-label fw-bold ms-2">لوق تغيير رتب ونك نيم الأعضاء</label>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="logToggleChannelRole" checked>
+              <label class="form-check-label fw-bold ms-2">لوق إنشاء وحذف الرومات والرتب</label>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary-custom mt-4" onclick="saveSettings()">
+          <i class="fa-solid fa-floppy-disk me-2"></i> حفظ إعدادات اللوقات
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 5: WELCOME -->
     <div id="tab-welcome" class="content-tab" style="display: none;">
       <div class="card-custom">
-        <div class="card-title-custom"><i class="fa-solid fa-door-open text-primary"></i> نظام الترحيب بالأعضاء الجدد</div>
-        <div class="form-check form-switch mb-3">
-          <input class="form-check-input" type="checkbox" id="welcomeEnabled">
-          <label class="form-check-label fw-bold ms-2">تفعيل الترحيب التلقائي</label>
+        <div class="card-title-custom"><i class="fa-solid fa-hand-peace text-primary"></i> نظام الترحيب وصورة الكرت الاحترافية</div>
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="welcomeEnabled">
+              <label class="form-check-label fw-bold ms-2">تفعيل الترحيب بالأعضاء الجدد</label>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="form-check form-switch p-3 rounded-3" style="background: #0c0d14; border: 1px solid var(--border-color);">
+              <input class="form-check-input" type="checkbox" id="welcomeSendImageCard" checked>
+              <label class="form-check-label fw-bold ms-2">توليد وإرسال صورة كرت الترحيب (Welcome Card Image) 🖼️</label>
+            </div>
+          </div>
         </div>
         <div class="row g-3">
           <div class="col-md-6">
@@ -549,7 +652,7 @@
       </div>
     </div>
 
-    <!-- TAB 5: WARNINGS -->
+    <!-- TAB 6: WARNINGS -->
     <div id="tab-warnings" class="content-tab" style="display: none;">
       <div class="card-custom">
         <div class="card-title-custom"><i class="fa-solid fa-list-ul text-warning"></i> سجل تحذيرات الأعضاء</div>
@@ -680,9 +783,26 @@
       document.getElementById('quickAntiNuke').checked = !!p.antiNuke;
       document.getElementById('protWhitelistRoles').value = (p.whitelistRoles || []).join(', ');
 
+      // Logs
+      const l = cfg.logs || {};
+      document.getElementById('quickLogs').checked = l.enabled !== false;
+      document.getElementById('logChanGeneral').value = l.general || cfg.logsChannelId || '';
+      document.getElementById('logChanMessages').value = l.messages || '';
+      document.getElementById('logChanVoice').value = l.voice || '';
+      document.getElementById('logChanMembers').value = l.members || '';
+      document.getElementById('logChanRoles').value = l.roles || '';
+
+      document.getElementById('logToggleMsgDelete').checked = l.logMessageDelete !== false;
+      document.getElementById('logToggleMsgUpdate').checked = l.logMessageUpdate !== false;
+      document.getElementById('logToggleVoice').checked = l.logVoiceState !== false;
+      document.getElementById('logToggleMemberJoinLeave').checked = l.logMemberJoinLeave !== false;
+      document.getElementById('logToggleMemberRoles').checked = l.logMemberRoleChange !== false;
+      document.getElementById('logToggleChannelRole').checked = l.logChannelChange !== false;
+
       // Welcome
       const w = cfg.welcome || {};
       document.getElementById('welcomeEnabled').checked = !!w.enabled;
+      document.getElementById('welcomeSendImageCard').checked = w.sendImageCard !== false;
       document.getElementById('welcomeChannelId').value = w.channelId || '';
       document.getElementById('welcomeAutoRoleId').value = w.autoRoleId || '';
       document.getElementById('welcomeMessage').value = w.message || '';
@@ -744,15 +864,29 @@
           antiNuke: document.getElementById('protAntiNuke').checked,
           whitelistRoles: document.getElementById('protWhitelistRoles').value.split(',').map(s => s.trim()).filter(Boolean)
         },
+        logs: {
+          enabled: document.getElementById('quickLogs').checked,
+          general: document.getElementById('logChanGeneral').value.trim() || document.getElementById('logsChannelId').value.trim(),
+          messages: document.getElementById('logChanMessages').value.trim(),
+          voice: document.getElementById('logChanVoice').value.trim(),
+          members: document.getElementById('logChanMembers').value.trim(),
+          roles: document.getElementById('logChanRoles').value.trim(),
+          logMessageDelete: document.getElementById('logToggleMsgDelete').checked,
+          logMessageUpdate: document.getElementById('logToggleMsgUpdate').checked,
+          logVoiceState: document.getElementById('logToggleVoice').checked,
+          logMemberJoinLeave: document.getElementById('logToggleMemberJoinLeave').checked,
+          logMemberRoleChange: document.getElementById('logToggleMemberRoles').checked,
+          logChannelChange: document.getElementById('logToggleChannelRole').checked
+        },
         welcome: {
           enabled: document.getElementById('welcomeEnabled').checked,
+          sendImageCard: document.getElementById('welcomeSendImageCard').checked,
           channelId: document.getElementById('welcomeChannelId').value.trim(),
           autoRoleId: document.getElementById('welcomeAutoRoleId').value.trim(),
           message: document.getElementById('welcomeMessage').value
         }
       };
 
-      // Gather types
       if (Array.isArray(globalConfig.ticketTypes)) {
         updated.ticketTypes = globalConfig.ticketTypes.map((t, idx) => ({
           ...t,
@@ -775,7 +909,7 @@
 
       if (res.ok) {
         globalConfig = updated;
-        showToast('✅ تم حفظ كافة الإعدادات بنجاح وتحديث البوت فوراً!');
+        showToast('✅ تم حفظ كافة الإعدادات واللوقات بنجاح وتحديث البوت فوراً!');
       } else {
         alert('حدث خطأ أثناء حفظ الإعدادات!');
       }
@@ -792,6 +926,18 @@
         body: JSON.stringify(globalConfig)
       });
       showToast(`تم تحديث ${key} بنجاح!`);
+    }
+
+    async function toggleLogsMaster(val) {
+      if (!globalConfig.logs) globalConfig.logs = {};
+      globalConfig.logs.enabled = val;
+      const token = localStorage.getItem('nazem_token');
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(globalConfig)
+      });
+      showToast(`تم ${val ? 'تفعيل' : 'تعطيل'} السجلات بنجاح!`);
     }
 
     async function loadWarnings() {

@@ -19,6 +19,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
+const { createCanvas, loadImage } = require('@napi-rs/canvas');
 
 // ==========================================
 // 1. إدارة الإعدادات والبيانات
@@ -89,7 +90,23 @@ const defaultConfig = {
     enabled: true,
     channelId: '',
     message: '👋 أهلاً بك يا {user} في سيرفر **{server}**! أنرت مجتمعنا 🎉',
-    autoRoleId: ''
+    autoRoleId: '',
+    sendImageCard: true
+  },
+  logs: {
+    enabled: true,
+    general: '1559953450324721757',
+    messages: '',
+    voice: '',
+    members: '',
+    roles: '',
+    logMessageDelete: true,
+    logMessageUpdate: true,
+    logVoiceState: true,
+    logMemberJoinLeave: true,
+    logMemberRoleChange: true,
+    logChannelChange: true,
+    logRoleChange: true
   },
   dashboard: {
     adminPassword: 'nazem'
@@ -136,7 +153,7 @@ function saveWarnings(data) {
 }
 
 // ==========================================
-// 2. دوال مساعدة للتذاكر والحماية
+// 2. دوال مساعدة للتذاكر والحماية والسجلات
 // ==========================================
 function parseTicketTopic(topic) {
   if (!topic) return null;
@@ -175,34 +192,52 @@ function isStaff(member, config, ticketTypeId = null) {
   return false;
 }
 
-function getLogsChannel(guild, config) {
-  if (config.logsChannelId) {
-    const ch = guild.channels.cache.get(config.logsChannelId);
+// جلب قناة اللوق المستهدفة بحسب الفئة
+function getTargetLogChannel(guild, category = 'general') {
+  const config = getConfig();
+  if (config.logs && config.logs.enabled === false) return null;
+  const logsCfg = config.logs || {};
+
+  const specificId = logsCfg[category];
+  if (specificId) {
+    const ch = guild.channels.cache.get(specificId);
     if (ch && ch.isTextBased()) return ch;
   }
+
+  const genId = logsCfg.general || config.logsChannelId;
+  if (genId) {
+    const ch = guild.channels.cache.get(genId);
+    if (ch && ch.isTextBased()) return ch;
+  }
+
   return guild.channels.cache.find(
-    (ch) =>
-      ch.isTextBased() &&
-      (ch.name.includes('لوق') || ch.name.includes('سجل') || ch.name.toLowerCase().includes('log'))
+    (ch) => ch.isTextBased() && (ch.name.includes('لوق') || ch.name.includes('سجل') || ch.name.toLowerCase().includes('log'))
   );
 }
 
-function getSecurityLogsChannel(guild, config) {
-  if (config.securityLogsChannelId) {
-    const ch = guild.channels.cache.get(config.securityLogsChannelId);
-    if (ch && ch.isTextBased()) return ch;
-  }
-  return getLogsChannel(guild, config);
+async function sendServerEventLog(guild, category, { title, description, color, fields = [] }) {
+  try {
+    const ch = getTargetLogChannel(guild, category);
+    if (!ch) return null;
+
+    const embed = new EmbedBuilder()
+      .setTitle(title)
+      .setColor(color || '#5865F2')
+      .setTimestamp();
+
+    if (description) embed.setDescription(description);
+    if (fields.length > 0) embed.addFields(fields);
+    return await ch.send({ embeds: [embed] });
+  } catch (e) {}
 }
 
 async function sendTicketLog(guild, { title, description, color, fields = [], files = [] }) {
   try {
-    const config = getConfig();
-    const logsChannel = getLogsChannel(guild, config);
-    if (!logsChannel) return null;
+    const ch = getTargetLogChannel(guild, 'general');
+    if (!ch) return null;
 
     const embed = new EmbedBuilder()
-      .setColor(color || config.colors?.primary || '#5865F2')
+      .setColor(color || '#5865F2')
       .setTitle(title)
       .setTimestamp();
 
@@ -212,9 +247,9 @@ async function sendTicketLog(guild, { title, description, color, fields = [], fi
     const payload = { embeds: [embed] };
     if (files.length > 0) payload.files = files;
 
-    return await logsChannel.send(payload);
+    return await ch.send(payload);
   } catch (err) {
-    console.error('Error sending log:', err);
+    console.error('Error sending ticket log:', err);
     return null;
   }
 }
@@ -222,20 +257,22 @@ async function sendTicketLog(guild, { title, description, color, fields = [], fi
 async function sendSecurityAlert(guild, { title, description, color, fields = [] }) {
   try {
     const config = getConfig();
-    const ch = getSecurityLogsChannel(guild, config);
+    let ch = null;
+    if (config.securityLogsChannelId) {
+      ch = guild.channels.cache.get(config.securityLogsChannelId);
+    }
+    if (!ch) ch = getTargetLogChannel(guild, 'general');
     if (!ch) return null;
 
     const embed = new EmbedBuilder()
       .setColor(color || config.colors?.danger || '#ED4245')
-      .setTitle(`🛡️ [حماية السيرفر] ${title}`)
+      .setTitle(`🛡️ [درع الحماية] ${title}`)
       .setDescription(description)
       .setTimestamp();
 
     if (fields.length > 0) embed.addFields(fields);
     return await ch.send({ embeds: [embed] });
-  } catch (e) {
-    console.error('Error sending security alert:', e);
-  }
+  } catch (e) {}
 }
 
 async function getOrCreateCategory(guild, config) {
@@ -259,7 +296,6 @@ async function getOrCreateCategory(guild, config) {
   }
 }
 
-// دالة لتنسيق واستخراج رسائل الشات للتذاكر
 async function getChannelTranscriptFormatted(channel) {
   try {
     const fetched = await channel.messages.fetch({ limit: 100 });
@@ -285,8 +321,105 @@ async function getChannelTranscriptFormatted(channel) {
   }
 }
 
+// توليد صورة كرت الترحيب الاحترافية
+async function generateWelcomeCard(member) {
+  try {
+    const width = 1000;
+    const height = 400;
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+
+    // 1. تدرج الخلفية الفخم
+    const bgGrad = ctx.createLinearGradient(0, 0, width, height);
+    bgGrad.addColorStop(0, '#0a0b14');
+    bgGrad.addColorStop(0.5, '#121424');
+    bgGrad.addColorStop(1, '#1b1d33');
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(0, 0, width, height);
+
+    // 2. دوائر توهج جمالية
+    ctx.save();
+    ctx.fillStyle = 'rgba(88, 101, 242, 0.16)';
+    ctx.beginPath();
+    ctx.arc(880, 50, 220, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(87, 242, 135, 0.1)';
+    ctx.beginPath();
+    ctx.arc(120, 360, 180, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 3. إطار الصورة مع زوايا ناعمة
+    ctx.strokeStyle = '#272b4d';
+    ctx.lineWidth = 4;
+    ctx.strokeRect(8, 8, width - 16, height - 16);
+
+    // 4. صورة أفتار العضو دائرية
+    const avatarX = 180;
+    const avatarY = 200;
+    const avatarRadius = 95;
+
+    // توهج خلف الأفتار
+    ctx.save();
+    ctx.shadowColor = '#5865f2';
+    ctx.shadowBlur = 25;
+    ctx.strokeStyle = '#5865f2';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.arc(avatarX, avatarY, avatarRadius + 4, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+
+    // رسم صورة العضو
+    try {
+      const avatarUrl = member.user.displayAvatarURL({ extension: 'png', size: 256 });
+      const avatarImg = await loadImage(avatarUrl);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(avatarImg, avatarX - avatarRadius, avatarY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
+      ctx.restore();
+    } catch (e) {
+      ctx.fillStyle = '#232742';
+      ctx.beginPath();
+      ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 5. النصوص
+    ctx.fillStyle = '#949ba4';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.fillText('WELCOME TO ' + member.guild.name.toUpperCase(), 340, 140);
+
+    const displayName = member.user.displayName || member.user.username;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 46px sans-serif';
+    const truncatedName = displayName.length > 18 ? displayName.slice(0, 16) + '...' : displayName;
+    ctx.fillText(truncatedName, 340, 205);
+
+    // 6. شارة رقم العضو
+    ctx.fillStyle = 'rgba(88, 101, 242, 0.25)';
+    ctx.fillRect(340, 240, 280, 48);
+    ctx.strokeStyle = '#5865f2';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(340, 240, 280, 48);
+
+    ctx.fillStyle = '#57f287';
+    ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`MEMBER #${member.guild.memberCount}`, 370, 273);
+
+    return canvas.toBuffer('image/png');
+  } catch (err) {
+    console.error('Welcome card generation error:', err);
+    return null;
+  }
+}
+
 // ==========================================
-// 3. تهيئة بوت ديسكورد
+// 3. تهيئة بوت ديسكورد مع كافة الـ Intents
 // ==========================================
 const client = new Client({
   intents: [
@@ -294,7 +427,8 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildModeration
+    GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildVoiceStates
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User, Partials.GuildMember]
 });
@@ -306,7 +440,7 @@ client.once(Events.ClientReady, () => {
   console.log('====================================');
 
   client.user.setPresence({
-    activities: [{ name: '🛡️ نظام الحماية والتذاكر الشامل | /security', type: ActivityType.Watching }],
+    activities: [{ name: '🛡️ نظام الحماية والتذاكر واللوقات الشاملة | /security', type: ActivityType.Watching }],
     status: 'online'
   });
 });
@@ -318,11 +452,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
   try {
     const config = getConfig();
 
-    // === أوامر السلاش ===
     if (interaction.isChatInputCommand()) {
       const { commandName } = interaction;
 
-      // 1. أمر إرسال لوحة التذاكر (/ticket-setup)
       if (commandName === 'ticket-setup') {
         const targetChannel = interaction.options.getChannel('channel') || interaction.channel;
 
@@ -360,17 +492,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: `✅ تم إرسال لوحة التذاكر بنجاح إلى ${targetChannel}!`, ephemeral: true });
       }
 
-      // 2. إغلاق التذكرة (/close)
-      if (commandName === 'close') {
-        return handleTicketCloseRequest(interaction);
-      }
+      if (commandName === 'close') return handleTicketCloseRequest(interaction);
+      if (commandName === 'claim') return handleTicketClaim(interaction);
 
-      // 3. استلام التذكرة (/claim)
-      if (commandName === 'claim') {
-        return handleTicketClaim(interaction);
-      }
-
-      // 4. إضافة عضو للتذكرة (/add)
       if (commandName === 'add') {
         const channel = interaction.channel;
         const meta = parseTicketTopic(channel.topic);
@@ -400,7 +524,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [addEmbed] });
       }
 
-      // 5. إزالة عضو من التذكرة (/remove)
       if (commandName === 'remove') {
         const channel = interaction.channel;
         const meta = parseTicketTopic(channel.topic);
@@ -428,7 +551,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ embeds: [removeEmbed] });
       }
 
-      // 6. أمر فحص الحماية (/security)
       if (commandName === 'security') {
         const p = config.protection || {};
         const embed = new EmbedBuilder()
@@ -439,16 +561,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
             { name: 'مانع الروابط (Anti-Links)', value: p.antiLinks ? '✅ مفعل' : '❌ معطل', inline: true },
             { name: 'مانع البوتات (Anti-Bots)', value: p.antiBots ? '✅ مفعل (طرد فوري)' : '❌ معطل', inline: true },
             { name: 'درع التخريب (Anti-Nuke)', value: p.antiNuke ? '✅ مفعل (سحب الرتب فوراً)' : '❌ معطل', inline: true },
-            { name: 'الترحيب التلقائي', value: config.welcome?.enabled ? '✅ مفعل' : '❌ معطل', inline: true },
+            { name: 'السجلات الشاملة (Logs)', value: config.logs?.enabled ? '✅ مفعلة بالكامل' : '❌ معطلة', inline: true },
             { name: 'رابط لوحة التحكم', value: `\`http://85.202.160.151:2220\``, inline: false }
           )
-          .setFooter({ text: 'يمكنك تعديل كافة إعدادات الحماية من الداش بورد' })
+          .setFooter({ text: 'يمكنك تعديل كافة إعدادات الحماية واللوقات من الداش بورد' })
           .setTimestamp();
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // 7. أوامر الإشراف والمودريشن (/warn, /warnings, /timeout, /ban, /kick, /clear, /lock, /unlock)
       if (commandName === 'warn') {
         const target = interaction.options.getUser('user');
         const reason = interaction.options.getString('reason') || 'بدون سبب محدد';
@@ -508,7 +629,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const member = await interaction.guild.members.fetch(targetUser.id).catch(() => null);
 
         if (!member) return interaction.reply({ content: '❌ تعذر العثور على العضو.', ephemeral: true });
-        if (!member.moderatable) return interaction.reply({ content: '❌ لا أملك صلاحية كتم هذا العضو (رتبته أعلى مني).', ephemeral: true });
+        if (!member.moderatable) return interaction.reply({ content: '❌ لا أملك صلاحية كتم هذا العضو.', ephemeral: true });
 
         await member.timeout(minutes * 60 * 1000, reason);
         return interaction.reply({ content: `🔇 تم كتم ${targetUser} لمدة **${minutes}** دقيقة. السبب: ${reason}` });
@@ -551,7 +672,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    // === تفاعلات القوائم والأزرار للتذاكر ===
     if (interaction.isStringSelectMenu() && interaction.customId === 'select_ticket_type') {
       return handleTicketCreation(interaction);
     }
@@ -566,14 +686,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } catch (err) {
     console.error('Interaction error:', err);
-    if (!interaction.replied && !interaction.deferred) {
-      interaction.reply({ content: '❌ حدث خطأ غير متوقع أثناء معالجة الطلب.', ephemeral: true }).catch(() => {});
-    }
   }
 });
 
 // ==========================================
-// 5. وظائف التذاكر التفصيلية
+// 5. وظائف التذاكر
 // ==========================================
 async function handleTicketCreation(interaction) {
   const config = getConfig();
@@ -581,14 +698,11 @@ async function handleTicketCreation(interaction) {
   const typeId = selectedValue.replace('ticket_type_', '');
   const ticketType = (config.ticketTypes || []).find((t) => t.id === typeId);
 
-  if (!ticketType) {
-    return interaction.reply({ content: '❌ نوع التذكرة غير معروف أو محذوف.', ephemeral: true });
-  }
+  if (!ticketType) return interaction.reply({ content: '❌ نوع التذكرة غير معروف أو محذوف.', ephemeral: true });
 
   const guild = interaction.guild;
   const user = interaction.user;
 
-  // فحص الحد الأقصى للتذاكر
   const maxLimit = config.maxTicketsPerUser || 1;
   const existingTickets = guild.channels.cache.filter((c) => {
     if (!c.name.includes('-')) return false;
@@ -606,18 +720,14 @@ async function handleTicketCreation(interaction) {
   await interaction.deferReply({ ephemeral: true });
 
   const category = await getOrCreateCategory(guild, config);
-
-  // حساب الرقم المتسلسل
   const currentCount = config.ticketCounter || 31;
   const formattedNumber = String(currentCount).padStart(4, '0');
   const channelPrefix = ticketType.channelPrefix || 'تذكرة';
   const channelName = `${channelPrefix}-${formattedNumber}`;
 
-  // تحديث العداد في config.json
   config.ticketCounter = currentCount + 1;
   saveConfig(config);
 
-  // تجهيز الصلاحيات للرتبتين ولصاحب التذكرة
   const permissionOverwrites = [
     { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
     {
@@ -681,7 +791,6 @@ async function handleTicketCreation(interaction) {
     permissionOverwrites
   });
 
-  // رسالة الترحيب وأزرار التحكم بالتذكرة
   const welcomeEmbed = new EmbedBuilder()
     .setColor(config.colors?.primary || '#5865F2')
     .setTitle(`🎫 ${ticketType.label} | #${formattedNumber}`)
@@ -875,7 +984,7 @@ async function handleTicketTranscript(interaction) {
 }
 
 // ==========================================
-// 6. درع الحماية الفوري (Anti-Spam, Anti-Links, Anti-Nuke, Anti-Bot)
+// 6. درع الحماية (Anti-Spam, Anti-Links, Anti-Nuke, Anti-Bot)
 // ==========================================
 const userSpamMap = new Map();
 const antiNukeTracker = {
@@ -893,17 +1002,246 @@ function trackAction(map, userId, limit, windowMs = 10000) {
   return times.length >= limit;
 }
 
-// أ. مانع السبام والروابط في الشات
+// ==========================================
+// 7. مركز اللوقات الشاملة وتوثيق السيرفر (All Server Logs)
+// ==========================================
+
+// أ. لوق حذف الرسائل
+client.on(Events.MessageDelete, async (message) => {
+  if (!message.guild || message.author?.bot) return;
+  const config = getConfig();
+  if (config.logs?.logMessageDelete === false) return;
+
+  const content = message.cleanContent || message.content || '*(رسالة بدون نص / صورة فقط)*';
+  const fields = [
+    { name: 'صاحب الرسالة', value: `${message.author} (\`${message.author?.id}\`)`, inline: true },
+    { name: 'القناة', value: `<#${message.channel.id}>`, inline: true },
+    { name: 'محتوى الرسالة المحذوفة', value: `\`\`\`${content.slice(0, 900)}\`\`\`` }
+  ];
+
+  if (message.attachments.size > 0) {
+    fields.push({
+      name: 'المرفقات',
+      value: message.attachments.map((a) => `[${a.name}](${a.url})`).join('\n')
+    });
+  }
+
+  await sendServerEventLog(message.guild, 'messages', {
+    title: '🗑️ [لوق الرسائل] تم حذف رسالة',
+    color: '#ED4245',
+    fields
+  });
+});
+
+// ب. لوق تعديل الرسائل
+client.on(Events.MessageUpdate, async (oldMsg, newMsg) => {
+  if (!oldMsg.guild || oldMsg.author?.bot) return;
+  if (oldMsg.content === newMsg.content) return;
+  const config = getConfig();
+  if (config.logs?.logMessageUpdate === false) return;
+
+  const oldText = oldMsg.cleanContent || oldMsg.content || '*(فارغ)*';
+  const newText = newMsg.cleanContent || newMsg.content || '*(فارغ)*';
+
+  await sendServerEventLog(oldMsg.guild, 'messages', {
+    title: '✏️ [لوق الرسائل] تم تعديل رسالة',
+    color: '#FEE75C',
+    fields: [
+      { name: 'الكاتب', value: `${oldMsg.author} (\`${oldMsg.author?.id}\`)`, inline: true },
+      { name: 'القناة', value: `<#${oldMsg.channel.id}>`, inline: true },
+      { name: 'رابط الرسالة', value: `[اضغط هنا للذهاب للرسالة](${newMsg.url})`, inline: true },
+      { name: 'قبل التعديل', value: `\`\`\`${oldText.slice(0, 450)}\`\`\`` },
+      { name: 'بعد التعديل', value: `\`\`\`${newText.slice(0, 450)}\`\`\`` }
+    ]
+  });
+});
+
+// ج. لوق الرومات الصوتية (دخول، خروج، انتقال)
+client.on(Events.VoiceStateUpdate, async (oldState, newState) => {
+  const guild = newState.guild || oldState.guild;
+  if (!guild) return;
+  const config = getConfig();
+  if (config.logs?.logVoiceState === false) return;
+  const member = newState.member || oldState.member;
+  if (!member || member.user.bot) return;
+
+  // دخول روم صوتي
+  if (!oldState.channelId && newState.channelId) {
+    await sendServerEventLog(guild, 'voice', {
+      title: '🔊 [لوق الصوتيات] دخول روم صوتي',
+      color: '#57F287',
+      fields: [
+        { name: 'العضو', value: `${member} (\`${member.id}\`)`, inline: true },
+        { name: 'الروم الصوتي', value: `<#${newState.channelId}>`, inline: true }
+      ]
+    });
+  }
+  // خروج من روم صوتي
+  else if (oldState.channelId && !newState.channelId) {
+    await sendServerEventLog(guild, 'voice', {
+      title: '🔇 [لوق الصوتيات] مغادرة روم صوتي',
+      color: '#ED4245',
+      fields: [
+        { name: 'العضو', value: `${member} (\`${member.id}\`)`, inline: true },
+        { name: 'الروم الصوتي', value: `<#${oldState.channelId}>`, inline: true }
+      ]
+    });
+  }
+  // انتقال بين رومات صوتية
+  else if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
+    await sendServerEventLog(guild, 'voice', {
+      title: '🔄 [لوق الصوتيات] انتقال بين رومات صوتية',
+      color: '#5865F2',
+      fields: [
+        { name: 'العضو', value: `${member} (\`${member.id}\`)`, inline: true },
+        { name: 'من روم', value: `<#${oldState.channelId}>`, inline: true },
+        { name: 'إلى روم', value: `<#${newState.channelId}>`, inline: true }
+      ]
+    });
+  }
+});
+
+// د. لوق تحديث بيانات ورتب ونك نيم الأعضاء
+client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
+  const guild = newMember.guild;
+  const config = getConfig();
+  if (config.logs?.logMemberRoleChange === false) return;
+
+  // تغيير الاسم المستعار (Nickname)
+  if (oldMember.nickname !== newMember.nickname) {
+    await sendServerEventLog(guild, 'members', {
+      title: '📝 [لوق الأعضاء] تغيير الاسم المستعار',
+      color: '#5865F2',
+      fields: [
+        { name: 'العضو', value: `${newMember} (\`${newMember.id}\`)`, inline: true },
+        { name: 'الاسم القديم', value: oldMember.nickname || oldMember.user.username, inline: true },
+        { name: 'الاسم الجديد', value: newMember.nickname || newMember.user.username, inline: true }
+      ]
+    });
+  }
+
+  // تغيير الرتب
+  const addedRoles = newMember.roles.cache.filter((r) => !oldMember.roles.cache.has(r.id));
+  const removedRoles = oldMember.roles.cache.filter((r) => !newMember.roles.cache.has(r.id));
+
+  if (addedRoles.size > 0 || removedRoles.size > 0) {
+    const fields = [{ name: 'العضو', value: `${newMember} (\`${newMember.id}\`)`, inline: true }];
+    if (addedRoles.size > 0) {
+      fields.push({ name: '🟢 الرتب المضافة', value: addedRoles.map((r) => `${r}`).join(', ') });
+    }
+    if (removedRoles.size > 0) {
+      fields.push({ name: '🔴 الرتب المزالة', value: removedRoles.map((r) => `${r}`).join(', ') });
+    }
+
+    await sendServerEventLog(guild, 'roles', {
+      title: '🏷️ [لوق الرتب] تعديل رتب عضو',
+      color: '#5865F2',
+      fields
+    });
+  }
+});
+
+// هـ. لوق مغادرة الأعضاء
+client.on(Events.GuildMemberRemove, async (member) => {
+  const guild = member.guild;
+  const config = getConfig();
+  if (config.logs?.logMemberJoinLeave === false) return;
+
+  const roles = member.roles.cache.filter((r) => r.id !== guild.id).map((r) => `${r}`).join(', ') || 'لا توجد';
+
+  await sendServerEventLog(guild, 'members', {
+    title: '🚪 [لوق الأعضاء] مغادرة عضو',
+    color: '#ED4245',
+    fields: [
+      { name: 'العضو', value: `${member.user.tag} (\`${member.id}\`)`, inline: true },
+      { name: 'الرتب التي كان يحملها', value: roles }
+    ]
+  });
+});
+
+// و. لوق إنشاء وحذف الرومات
+client.on(Events.ChannelCreate, async (channel) => {
+  if (!channel.guild) return;
+  const config = getConfig();
+  if (config.logs?.logChannelChange === false) return;
+
+  await sendServerEventLog(channel.guild, 'roles', {
+    title: '📁 [لوق الرومات] تم إنشاء روم جديد',
+    color: '#57F287',
+    fields: [
+      { name: 'اسم الروم', value: `${channel.name} (<#${channel.id}>)`, inline: true },
+      { name: 'النوع', value: `${channel.type}`, inline: true }
+    ]
+  });
+});
+
+client.on(Events.ChannelDelete, async (channel) => {
+  if (!channel.guild) return;
+  const config = getConfig();
+  if (config.logs?.logChannelChange === false) return;
+
+  await sendServerEventLog(channel.guild, 'roles', {
+    title: '🗑️ [لوق الرومات] تم حذف روم',
+    color: '#ED4245',
+    fields: [{ name: 'اسم الروم المحذوف', value: `\`${channel.name}\``, inline: true }]
+  });
+});
+
+// ز. لوق إنشاء وحذف الرتب
+client.on(Events.GuildRoleCreate, async (role) => {
+  const config = getConfig();
+  if (config.logs?.logRoleChange === false) return;
+
+  await sendServerEventLog(role.guild, 'roles', {
+    title: '👑 [لوق الرتب] تم إنشاء رتبة جديدة',
+    color: '#57F287',
+    fields: [
+      { name: 'الرتبة', value: `${role} (\`${role.name}\`)`, inline: true },
+      { name: 'اللون', value: `${role.hexColor}`, inline: true }
+    ]
+  });
+});
+
+client.on(Events.GuildRoleDelete, async (role) => {
+  const config = getConfig();
+  if (config.logs?.logRoleChange === false) return;
+
+  await sendServerEventLog(role.guild, 'roles', {
+    title: '🗑️ [لوق الرتب] تم حذف رتبة',
+    color: '#ED4245',
+    fields: [{ name: 'اسم الرتبة المحذوفة', value: `\`${role.name}\``, inline: true }]
+  });
+});
+
+// ح. لوق الحظر وفك الحظر
+client.on(Events.GuildBanAdd, async (ban) => {
+  await sendServerEventLog(ban.guild, 'general', {
+    title: '🔨 [لوق العقوبات] تم حظر عضو (BAN)',
+    color: '#ED4245',
+    fields: [
+      { name: 'العضو المحظور', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: true },
+      { name: 'السبب', value: ban.reason || 'لم يحدد سبب', inline: true }
+    ]
+  });
+});
+
+client.on(Events.GuildBanRemove, async (ban) => {
+  await sendServerEventLog(ban.guild, 'general', {
+    title: '🔓 [لوق العقوبات] تم فك حظر عضو (UNBAN)',
+    color: '#57F287',
+    fields: [{ name: 'العضو', value: `${ban.user.tag} (\`${ban.user.id}\`)`, inline: true }]
+  });
+});
+
+// ط. رسائل الشات (مانع السبام والروابط)
 client.on(Events.MessageCreate, async (message) => {
   if (!message.guild || message.author.bot) return;
   const config = getConfig();
   const p = config.protection || {};
   const member = message.member;
 
-  // فحص الوايت لست
   if (isWhitelisted(member, config)) return;
 
-  // 1. مانع الروابط والدعوات
   if (p.antiLinks || p.antiInvites) {
     const linkRegex = /(https?:\/\/|discord\.gg\/|discord\.com\/invite\/)/i;
     if (linkRegex.test(message.content)) {
@@ -920,7 +1258,6 @@ client.on(Events.MessageCreate, async (message) => {
     }
   }
 
-  // 2. مانع السبام والفلود
   if (p.antiSpam) {
     const now = Date.now();
     const spamLimit = p.antiSpamLimit || 5;
@@ -946,7 +1283,7 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
-// ب. مانع دخول البوتات غير الموثقة والترحيب بالأعضاء
+// ي. دخول الأعضاء: مانع البوتات + الترحيب الفخم بصورة الكرت الاحترافية + لوق الدخول
 client.on(Events.GuildMemberAdd, async (member) => {
   const config = getConfig();
 
@@ -971,37 +1308,63 @@ client.on(Events.GuildMemberAdd, async (member) => {
     } catch (e) {}
   }
 
-  // 2. نظام الترحيب والرتب التلقائية
+  // 2. لوق دخول العضو
+  if (config.logs?.logMemberJoinLeave !== false) {
+    const accountCreated = `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`;
+    await sendServerEventLog(member.guild, 'members', {
+      title: '📥 [لوق الأعضاء] انضمام عضو جديد',
+      color: '#57F287',
+      fields: [
+        { name: 'العضو', value: `${member} (\`${member.id}\`)`, inline: true },
+        { name: 'تاريخ إنشاء الحساب', value: accountCreated, inline: true },
+        { name: 'رقم العضو في السيرفر', value: `#${member.guild.memberCount}`, inline: true }
+      ]
+    });
+  }
+
+  // 3. نظام الترحيب مع صورة الكرت الترحيبية
   if (!member.user.bot && config.welcome?.enabled) {
     try {
-      // إعطاء الرتبة التلقائية
       if (config.welcome.autoRoleId) {
         const role = member.guild.roles.cache.get(config.welcome.autoRoleId);
         if (role) await member.roles.add(role).catch(() => {});
       }
 
-      // إرسال رسالة الترحيب
       if (config.welcome.channelId) {
         const ch = member.guild.channels.cache.get(config.welcome.channelId);
         if (ch && ch.isTextBased()) {
           const rawMsg = config.welcome.message || 'أهلاً بك {user} في سيرفر {server}!';
           const text = rawMsg.replace('{user}', `${member}`).replace('{server}', member.guild.name);
+
           const welcomeEmbed = new EmbedBuilder()
             .setColor(config.colors?.primary || '#5865F2')
             .setTitle(`🎉 عضو جديد انضم لمجتمع ${member.guild.name}!`)
             .setDescription(text)
-            .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
             .setFooter({ text: `أنت العضو رقم #${member.guild.memberCount}` })
             .setTimestamp();
 
-          await ch.send({ embeds: [welcomeEmbed] });
+          const payload = { embeds: [welcomeEmbed] };
+
+          // توليد وإرفاق صورة كرت الترحيب
+          if (config.welcome.sendImageCard !== false) {
+            const cardBuffer = await generateWelcomeCard(member);
+            if (cardBuffer) {
+              const attachment = new AttachmentBuilder(cardBuffer, { name: 'welcome-card.png' });
+              welcomeEmbed.setImage('attachment://welcome-card.png');
+              payload.files = [attachment];
+            }
+          }
+
+          await ch.send(payload);
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.error('Welcome message error:', e);
+    }
   }
 });
 
-// ج. درع الـ Anti-Nuke (مراقبة الحذف والتخريب)
+// ك. درع الـ Anti-Nuke (مراقبة الحذف المتكرر)
 client.on(Events.ChannelDelete, async (channel) => {
   const config = getConfig();
   if (!config.protection?.antiNuke || !channel.guild) return;
@@ -1015,7 +1378,6 @@ client.on(Events.ChannelDelete, async (channel) => {
     if (trackAction(antiNukeTracker.channelDeletes, executor.id, limit)) {
       const execMember = await channel.guild.members.fetch(executor.id).catch(() => null);
       if (execMember && execMember.manageable) {
-        // تجريد الإداري من كافة رتبه فوراً لإيقاف التخريب
         await execMember.roles.set([], 'Anti-Nuke: Mass Channel Deletion Detected');
       }
       await sendSecurityAlert(channel.guild, {
@@ -1050,13 +1412,12 @@ client.on(Events.GuildRoleDelete, async (role) => {
 });
 
 // ==========================================
-// 7. الداش بورد (Express Web Dashboard & REST API)
+// 8. الداش بورد (Express Web Dashboard & REST API)
 // ==========================================
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'dashboard', 'public')));
 
-// Middleware للتحقق من التوكن البسيط
 function authMiddleware(req, res, next) {
   const auth = req.headers.authorization;
   if (auth && auth.startsWith('Bearer ') && auth.replace('Bearer ', '').trim() === 'nazem_auth_session') {
@@ -1065,7 +1426,6 @@ function authMiddleware(req, res, next) {
   return res.status(401).json({ error: 'Unauthorized' });
 }
 
-// تسجيل دخول الداش بورد
 app.post('/api/login', (req, res) => {
   const { password } = req.body;
   const config = getConfig();
@@ -1076,7 +1436,6 @@ app.post('/api/login', (req, res) => {
   return res.status(403).json({ success: false, message: 'Invalid Password' });
 });
 
-// إحصائيات البوت الحية
 app.get('/api/stats', authMiddleware, (req, res) => {
   let membersCount = 0;
   client.guilds.cache.forEach((g) => { membersCount += g.memberCount || 0; });
@@ -1090,12 +1449,10 @@ app.get('/api/stats', authMiddleware, (req, res) => {
   });
 });
 
-// جلب الإعدادات الحالية
 app.get('/api/config', authMiddleware, (req, res) => {
   return res.json(getConfig());
 });
 
-// حفظ وتحديث الإعدادات فوراً
 app.post('/api/config', authMiddleware, (req, res) => {
   const newConfig = req.body;
   if (!newConfig) return res.status(400).json({ error: 'Invalid config' });
@@ -1107,12 +1464,10 @@ app.post('/api/config', authMiddleware, (req, res) => {
   return res.status(500).json({ error: 'Failed to write config' });
 });
 
-// جلب التحذيرات
 app.get('/api/warnings', authMiddleware, (req, res) => {
   return res.json(getWarnings());
 });
 
-// حذف تحذير
 app.delete('/api/warnings/:userId/:warnId', authMiddleware, (req, res) => {
   const { userId, warnId } = req.params;
   const warns = getWarnings();
@@ -1124,7 +1479,6 @@ app.delete('/api/warnings/:userId/:warnId', authMiddleware, (req, res) => {
   return res.json({ success: true });
 });
 
-// فحص الاتصال الخفيف
 app.get('/diag', (req, res) => {
   res.json({
     status: client.isReady() ? 'online' : 'connecting',
@@ -1139,7 +1493,7 @@ app.listen(PORT, '0.0.0.0', () => {
 });
 
 // ==========================================
-// 8. تسجيل الدخول إلى ديسكورد
+// 9. تسجيل الدخول إلى ديسكورد
 // ==========================================
 const fallbackToken = Buffer.from('TVRVMU9UZzROVE16TWpBd01EZ3dORGt5TlEuR0hGTmZZLjhHN2psWTFoZS16aGp1UjJscnFTY3VpeWt3ZC11eWREdGR6UVo0', 'base64').toString('utf8');
 const cleanToken = (process.env.DISCORD_TOKEN || fallbackToken).trim().replace(/["']/g, '');
